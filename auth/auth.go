@@ -38,21 +38,21 @@ func GetAuthorization(ctx context.Context) Authorization {
 }
 
 const (
-	// Name of the HTTP Authorization header as specified in RFC 7235, section 4.2
+	// HeaderAuthorization contains the name of the HTTP Authorization header as specified in RFC 7235, section 4.2
 	// (https://datatracker.ietf.org/doc/html/rfc7235#section-4.2)
 	HeaderAuthorization = "Authorization"
 
-	// Authorization scheme used with basic authentication as specified in
+	// AuthorizationSchemeBasic contains the authorization scheme used with basic authentication as specified in
 	// RFC 7617, section 2
 	// (https://datatracker.ietf.org/doc/html/rfc7617#section-2)
 	AuthorizationSchemeBasic = "Basic"
 
-	// Authorization scheme used with token bearer authorization as specified
+	// AuthorizationSchemeBearer contains the authorization scheme used with token bearer authorization as specified
 	// in RFC 6750, section 2.1
 	// (https://datatracker.ietf.org/doc/html/rfc6750#section-2.1)
 	AuthorizationSchemeBearer = "Bearer"
 
-	// WWW-Authenticate response header as specified in RFC 7235, section 4.1
+	// HeaderWWWAuthenticate contains the name of the WWW-Authenticate response header as specified in RFC 7235, section 4.1
 	// (https://datatracker.ietf.org/doc/html/rfc7235#section-4.1)
 	HeaderWWWAuthenticate = "WWW-Authenticate"
 )
@@ -81,7 +81,7 @@ func (a *AuthenticationChallenge) toHeader() string {
 // request carries an Authorization (using GetAuthorization). If no
 // authorization is found, the request is rejected with a HTTP status
 // 401 (Unauthorized). The response contains a WWW-Authenticate header
-// with the given challanges.
+// with the given challenges.
 func Authorized(h http.Handler, challenge AuthenticationChallenge, moreChallenges ...AuthenticationChallenge) http.Handler {
 	var b strings.Builder
 	b.WriteString(challenge.toHeader())

@@ -38,9 +38,14 @@ func Middleware(h http.Handler, rewriter ...URLRewriter) http.Handler {
 }
 
 const (
+	// HeaderForwarded contains the key of the Forwarded request header.
 	HeaderForwarded = "Forwarded"
-	SchemeHttp      = "http"
-	SchemeHttps     = "https"
+
+	// SchemeHttp contains the URL scheme for HTTP.
+	SchemeHttp = "http"
+
+	// SchemeHttps contains the URL scheme for HTTPS.
+	SchemeHttps = "https"
 )
 
 // Forwarded is a URLRewriter which updates URL fields based
@@ -90,8 +95,11 @@ func applyForwarded(h string, u *url.URL) {
 }
 
 const (
+	// HeaderXForwardedHost contains the key for the X-Forwarded-Proto request header.
 	HeaderXForwardedProto = "X-Forwarded-Proto"
-	HeaderXForwardedHost  = "X-Forwarded-Host"
+
+	// HeaderXForwardedHost contains the key for the X-Forwarded-Host request header.
+	HeaderXForwardedHost = "X-Forwarded-Host"
 )
 
 // XForwarded is a URLRewriter that rewrites the r's URL based on the X-Forwarded-*

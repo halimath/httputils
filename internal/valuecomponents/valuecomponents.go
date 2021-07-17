@@ -123,7 +123,9 @@ func tokenOrQuotedString(s string) (string, int, error) {
 }
 
 const (
+	// Delimiters contains all delimiter characters
 	Delimiters = `"(),/:;<=>?@[\]{}`
+	// TokenChars contains all valid token characters
 	TokenChars = "!#$%&'*+-.^_`|~0123456789abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ"
 )
 
@@ -148,6 +150,7 @@ func isTokenChar(r rune) bool {
 	return strings.ContainsRune(TokenChars, r)
 }
 
+// ParseQuotedString parses a single quoted string
 func ParseQuotedString(v string) (string, error) {
 	c, s := utf8.DecodeRuneInString(v)
 	if c != '"' {

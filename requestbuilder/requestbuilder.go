@@ -28,43 +28,43 @@ func Get(target string) *RequestBuilder {
 	return New(http.MethodGet, target)
 }
 
-// Get creates a new builder using HTTP verb POST.
+// Post creates a new builder using HTTP verb POST.
 // target is used the same way as described for httptest.NewRequest.
 func Post(target string) *RequestBuilder {
 	return New(http.MethodPost, target)
 }
 
-// Get creates a new builder using HTTP verb PUT.
+// Put creates a new builder using HTTP verb PUT.
 // target is used the same way as described for httptest.NewRequest.
 func Put(target string) *RequestBuilder {
 	return New(http.MethodPut, target)
 }
 
-// Get creates a new builder using HTTP verb DELETE.
+// Delete creates a new builder using HTTP verb DELETE.
 // target is used the same way as described for httptest.NewRequest.
 func Delete(target string) *RequestBuilder {
 	return New(http.MethodDelete, target)
 }
 
-// Get creates a new builder using HTTP verb PATCH.
+// Patch creates a new builder using HTTP verb PATCH.
 // target is used the same way as described for httptest.NewRequest.
 func Patch(target string) *RequestBuilder {
 	return New(http.MethodPatch, target)
 }
 
-// Get creates a new builder using HTTP verb OPTIONS.
+// Options creates a new builder using HTTP verb OPTIONS.
 // target is used the same way as described for httptest.NewRequest.
 func Options(target string) *RequestBuilder {
 	return New(http.MethodOptions, target)
 }
 
-// Get creates a new builder using HTTP verb HEAD.
+// Head creates a new builder using HTTP verb HEAD.
 // target is used the same way as described for httptest.NewRequest.
 func Head(target string) *RequestBuilder {
 	return New(http.MethodHead, target)
 }
 
-// Get creates a new builder using HTTP verb TRACE.
+// Trace creates a new builder using HTTP verb TRACE.
 // target is used the same way as described for httptest.NewRequest.
 func Trace(target string) *RequestBuilder {
 	return New(http.MethodTrace, target)

@@ -9,7 +9,7 @@ import (
 )
 
 func Example() {
-	// h is a http.Handler, that actualy handles the request.
+	// h is a http.Handler, that actually handles the request.
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain")
 
