@@ -3,7 +3,7 @@ package valuecomponents
 import (
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/halimath/expect-go"
 )
 
 func TestParseToken(t *testing.T) {
@@ -13,11 +13,9 @@ func TestParseToken(t *testing.T) {
 		"   asd ": "",
 	}
 
-	for in, exp := range tab {
-		act := ParseToken(in)
-		if act != exp {
-			t.Errorf("'%s': expected '%s' but got '%s'", in, exp, act)
-		}
+	for in, want := range tab {
+		got := ParseToken(in)
+		expect.That(t, got).Is(expect.Equal(want))
 	}
 }
 
@@ -28,14 +26,10 @@ func TestParseQuotedString(t *testing.T) {
 		`  "asd" `: "",
 	}
 
-	for in, exp := range tab {
-		act, err := ParseQuotedString(in)
-		if err != nil {
-			t.Error(err)
-		}
-		if act != exp {
-			t.Errorf("'%s': expected '%s' but got '%s'", in, exp, act)
-		}
+	for in, want := range tab {
+		got, err := ParseQuotedString(in)
+		expect.That(t, err, expect.StopImmediately{}).Is(expect.NoError())
+		expect.That(t, got).Is(expect.Equal(want))
 	}
 }
 
@@ -90,12 +84,9 @@ func TestParseFieldValueComponents(t *testing.T) {
 		},
 	}
 
-	for in, exp := range tab {
-		act, err := ParseValueList(in)
-		if err != nil {
-			t.Errorf("'%s': got error %s", in, err)
-		} else if diff := deep.Equal(exp, act); diff != nil {
-			t.Errorf("'%s': got diff: %s", in, diff)
-		}
+	for in, want := range tab {
+		got, err := ParseValueList(in)
+		expect.That(t, err, expect.StopImmediately{}).Is(expect.NoError())
+		expect.That(t, got).Is(expect.DeepEqual(want))
 	}
 }

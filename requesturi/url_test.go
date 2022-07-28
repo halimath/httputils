@@ -5,7 +5,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/halimath/expect-go"
 	"github.com/halimath/httputils/requestbuilder"
 )
 
@@ -18,13 +18,11 @@ func TestURL(t *testing.T) {
 			Request(): "https://https.host/foo/bar",
 	}
 
-	for r, exp := range table {
+	for r, want := range table {
 		var w httptest.ResponseRecorder
 
 		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if diff := deep.Equal(exp, r.URL.String()); diff != nil {
-				t.Error(diff)
-			}
+			expect.That(t, r.URL.String()).Is(expect.Equal(want))
 		}))
 
 		f.ServeHTTP(&w, r)
@@ -59,13 +57,11 @@ func TestForwarded(t *testing.T) {
 			Request(): "http://invalid.header/foo/bar",
 	}
 
-	for r, exp := range table {
+	for r, want := range table {
 		var w httptest.ResponseRecorder
 
 		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if diff := deep.Equal(exp, r.URL.String()); diff != nil {
-				t.Error(diff)
-			}
+			expect.That(t, r.URL.String()).Is(expect.Equal(want))
 		}), Forwarded)
 
 		f.ServeHTTP(&w, r)
@@ -90,13 +86,11 @@ func TestXForwarded(t *testing.T) {
 			Request(): "http://forwarded-proto.header/foo/bar",
 	}
 
-	for r, exp := range table {
+	for r, want := range table {
 		var w httptest.ResponseRecorder
 
 		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			if diff := deep.Equal(exp, r.URL.String()); diff != nil {
-				t.Error(diff)
-			}
+			expect.That(t, r.URL.String()).Is(expect.Equal(want))
 		}), XForwarded)
 
 		f.ServeHTTP(&w, r)

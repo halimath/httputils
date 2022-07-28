@@ -6,7 +6,7 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/go-test/deep"
+	"github.com/halimath/expect-go"
 )
 
 func TestRequestBuilder(t *testing.T) {
@@ -31,11 +31,9 @@ func TestRequestBuilder(t *testing.T) {
 		Get("/").AddHeader("Forwarded", "proto=https"): reqWithHeader,
 	}
 
-	for in, exp := range tab {
-		act := in.Request()
+	for in, want := range tab {
+		got := in.Request()
 
-		if diff := deep.Equal(exp, act); diff != nil {
-			t.Error(diff)
-		}
+		expect.That(t, got).Is(expect.DeepEqual(want))
 	}
 }
