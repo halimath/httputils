@@ -10,7 +10,7 @@ other web framework.
 
 ## Installation
 
-Use `go get` to install the libary with your project. You need Go >= 1.13 to use the lib.
+Use `go get` to install the libary with your project. You need Go >= 1.18 to use the lib. 
 
 ```
 $ go get github.com/halimath/httputils
