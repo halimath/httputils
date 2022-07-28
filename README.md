@@ -202,6 +202,42 @@ h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 http.ListenAndServe(":1234", requesturi.Middleware(h, requesturi.Forwarded, requesturi.XForwarded))
 ```
 
+### CORS
+
+Package `cors` provides a configurable middleware to handle _Cross Origin Resource Sharing_ (CORS). The
+middleware injects response headers and handles pre-flight requests completely.
+
+To generally allow access to all resources (i.e. endpoints) from all origins use something like this:
+
+```go
+// restAPI is a http.Handler that defines some kind of resource.
+restAPI := http.NewServeMux()
+
+http.ListenAndServe(":1234", cors.Middleware(restAPI))
+```
+
+To enable CORS for specific endpoints and/or origins, you can pass additional configuration arguments to the
+middleware:
+
+```go
+// restAPI is a http.Handler that defines some kind of resource.
+restAPI := http.NewServeMux()
+
+http.ListenAndServe(":1234",
+    cors.Middleware(
+        restAPI,
+        cors.Endpoint{
+            Path: "/api/v1/resource1",
+        },
+        cors.Endpoint{
+            Path:             "/api/v1/resource2",
+            AllowMethods:     []string{http.MethodPost},
+            AllowCredentials: true,
+        },
+    ),
+)
+```
+
 ### Request Builder (for tests)
 
 Package `requestbuilder` contains a builder that can be used to build `http.Request` values during tests.
