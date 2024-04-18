@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/halimath/expect-go"
+	"github.com/halimath/expect"
+	"github.com/halimath/expect/is"
 	"github.com/halimath/httputils/requestbuilder"
 )
 
@@ -26,11 +27,11 @@ func TestBasicAuth(t *testing.T) {
 		},
 	}
 
-	for in, exp := range tab {
+	for in, want := range tab {
 		var w httptest.ResponseRecorder
 		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			got := GetAuthorization(r.Context())
-			expect.That(t, got).Is(expect.DeepEqual(exp))
+			expect.That(t, is.DeepEqualTo(got, want))
 		})
 		Basic(h).ServeHTTP(&w, in)
 	}
@@ -45,11 +46,11 @@ func TestBearer(t *testing.T) {
 		requestbuilder.Get("/").AddHeader(HeaderAuthorization, "Bearer foobar").Request():                                           &BearerToken{Token: "foobar"},
 	}
 
-	for in, exp := range tab {
+	for in, want := range tab {
 		var w httptest.ResponseRecorder
 		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 			got := GetAuthorization(r.Context())
-			expect.That(t, got).Is(expect.DeepEqual(exp))
+			expect.That(t, is.DeepEqualTo(got, want))
 		})
 		Bearer(h).ServeHTTP(&w, in)
 	}
@@ -72,10 +73,10 @@ func TestAuthorized(t *testing.T) {
 		},
 	))
 
-	for in, exp := range tab {
+	for in, want := range tab {
 		var w httptest.ResponseRecorder
 		h.ServeHTTP(&w, in)
 
-		expect.That(t, w.Result().StatusCode).Is(expect.Equal(exp))
+		expect.That(t, is.EqualTo(w.Result().StatusCode, want))
 	}
 }

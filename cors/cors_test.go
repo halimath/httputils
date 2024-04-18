@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/halimath/expect-go"
+	"github.com/halimath/expect"
+	"github.com/halimath/expect/is"
 )
 
 var (
@@ -16,17 +17,11 @@ var (
 	})
 )
 
-func httpHeader(key, value string) expect.Matcher {
-	return expect.MatcherFunc(func(ctx expect.Context, got any) {
-		h, ok := got.(http.Header)
-		if !ok {
-			ctx.Failf("expected <%v> to be http.Header but got <%T>", got, got)
-			return
-		}
-
-		v := h.Get(key)
+func hasHTTPHeader(got http.Header, key, value string) expect.ExpectFunc {
+	return expect.ExpectFunc(func(t expect.TB) {
+		v := got.Get(key)
 		if value != v {
-			ctx.Failf("expected HTTP header <%s> to be <%s> but got <%s>", key, value, v)
+			t.Errorf("expected HTTP header <%s> to be <%s> but got <%s>", key, value, v)
 		}
 	})
 }
@@ -38,7 +33,7 @@ func TestMiddleware_noCorsRequest(t *testing.T) {
 	m := Middleware(h)
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
+	expect.That(t, is.EqualTo(w.Result().StatusCode, http.StatusOK))
 }
 
 func TestMiddleware_corsRequest(t *testing.T) {
@@ -49,8 +44,10 @@ func TestMiddleware_corsRequest(t *testing.T) {
 	m := Middleware(h)
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "https://example.com"))
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusOK),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, "https://example.com"),
+	)
 }
 
 func TestMiddleware_preflightRequest(t *testing.T) {
@@ -61,8 +58,10 @@ func TestMiddleware_preflightRequest(t *testing.T) {
 	m := Middleware(h)
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusNoContent))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "https://example.com"))
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusNoContent),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, "https://example.com"),
+	)
 }
 
 func TestMiddleware_corsRequestWithCustomAllows(t *testing.T) {
@@ -78,11 +77,13 @@ func TestMiddleware_corsRequestWithCustomAllows(t *testing.T) {
 	})
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "https://example.com"))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowMethods, "GET, POST"))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowHeaders, "Authorization"))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowCredentials, "true"))
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusOK),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, "https://example.com"),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowMethods, "GET, POST"),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowHeaders, "Authorization"),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowCredentials, "true"),
+	)
 }
 
 func TestMiddleware_corsRequestWithWildcardOrigin(t *testing.T) {
@@ -96,8 +97,10 @@ func TestMiddleware_corsRequestWithWildcardOrigin(t *testing.T) {
 	})
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "https://example.com"))
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusOK),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, "https://example.com"),
+	)
 }
 
 func TestMiddleware_corsRequestWithListedOrigins(t *testing.T) {
@@ -111,8 +114,10 @@ func TestMiddleware_corsRequestWithListedOrigins(t *testing.T) {
 	})
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "https://example.com"))
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusOK),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, "https://example.com"),
+	)
 }
 
 func TestMiddleware_corsRequestWithListedOriginsButNoneMatches(t *testing.T) {
@@ -126,6 +131,8 @@ func TestMiddleware_corsRequestWithListedOriginsButNoneMatches(t *testing.T) {
 	})
 	m.ServeHTTP(w, r)
 
-	expect.That(t, w.Result().StatusCode).Has(expect.Equal(http.StatusOK))
-	expect.That(t, w.Header()).Has(httpHeader(ResponseHeaderAllowOrigin, "")) // TODO: Rewrite with negative test
+	expect.That(t,
+		is.EqualTo(w.Result().StatusCode, http.StatusOK),
+		hasHTTPHeader(w.Header(), ResponseHeaderAllowOrigin, ""),
+	)
 }

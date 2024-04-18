@@ -6,7 +6,8 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/halimath/expect-go"
+	"github.com/halimath/expect"
+	"github.com/halimath/expect/is"
 )
 
 func TestRequestBuilder(t *testing.T) {
@@ -34,6 +35,8 @@ func TestRequestBuilder(t *testing.T) {
 	for in, want := range tab {
 		got := in.Request()
 
-		expect.That(t, got).Is(expect.DeepEqual(want))
+		expect.That(t, is.DeepEqualTo(got, want,
+			is.ExcludeFields{"GetBody", "Cancel"}, // These fields are introduced after go1.18
+		))
 	}
 }
