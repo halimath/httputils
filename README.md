@@ -8,7 +8,7 @@ This repo contains a library for the Golang programming language that provides u
 HTTP services. The library focusses on using the standard library only and thus be agnostic about any 
 other web framework.
 
-## Installation
+# Installation
 
 Use `go get` to install the libary with your project. You need Go >= 1.18 to use the lib. 
 
@@ -16,12 +16,12 @@ Use `go get` to install the libary with your project. You need Go >= 1.18 to use
 $ go get github.com/halimath/httputils
 ```
 
-## Usage
+# Usage
 
 `httputils` contains a set of different features that can be used independently or together. The following
 sections each describe a single feature.
 
-### Authorization
+## Authorization
 
 `httputils` contains a HTTP middleware that handles HTTP Authorization. The middleware extracts the
 authorization credentials and stores them in the request's context before forwarding the request to
@@ -91,7 +91,7 @@ storing an `Authorization` value in the context.
   (i.e. by sending two `Authorization` header). The last (successful) middleware overwrites any 
   Authorization value stored by a middleware that ran previously.
 
-#### How to implement your own Authorization scheme
+### How to implement your own Authorization scheme
 
 HTTP Authorization is pretty flexible so chances are that you need a custom implementation to grab the
 user's credentials from a request. If you want to use the `Authorized` middleware you need to do the 
@@ -166,7 +166,7 @@ http.ListenAndServe(":1234",
 )
 ```
 
-#### A note on how to verify the credentials
+### A note on how to verify the credentials
 
 You may have noted that none of the above middlewares that extract user credentials actually performs a
 verificates besides some syntax checking. This task is intentionally left off the framework. The reason
@@ -181,7 +181,7 @@ positioned after the `Authorized` middleware that does the verification. If you 
 verification in a different software layer, simply pass the request's context to the business function
 (which in modern Go is a generally good advice) and use `auth.GetAuthorization` to read the credentials.
 
-### Request URI
+## Request URI
 
 The `requesturi` package contains a HTTP middleware that augments some of the request's `URL` fields that
 are left blank by default. The resulting `URL` can be used to reconstruct the requested URI _as specified
@@ -202,7 +202,7 @@ h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 http.ListenAndServe(":1234", requesturi.Middleware(h, requesturi.Forwarded, requesturi.XForwarded))
 ```
 
-### CORS
+## CORS
 
 Package `cors` provides a configurable middleware to handle _Cross Origin Resource Sharing_ (CORS). The
 middleware injects response headers and handles pre-flight requests completely.
@@ -238,7 +238,7 @@ http.ListenAndServe(":1234",
 )
 ```
 
-### Request Builder (for tests)
+## Request Builder (for tests)
 
 Package `requestbuilder` contains a builder that can be used to build `http.Request` values during tests.
 While package `httptest` provides a `NewRequest` function to create a request for tests, setting headers
@@ -290,7 +290,25 @@ func TestBasicAuth(t *testing.T) {
 
 ```
 
-## License
+## Buffered Response
+
+Package `github.com/halimath/httputils/bufferedresponse` provides a type `ResponseWriter` that satisfies the interface
+[`http.ResponseWriter`](https://pkg.go.dev/net/http#ResponseWriter) as an in-memory buffered implementation.
+The type "collects" all headers, status code and body bytes written and can then "replay" the response on
+any (even multiple) `http.ResponseWriter`s.
+
+Use this buffer implementation when implementing middlewares or request handlers that need a way to "rewind"
+the response and start over (i.e. for handling errors).
+
+## Response
+
+Package `github.com/halimath/httputils/reponse` provides several functions to easily create responses from
+http handler methods. These functions are built on the `bufferedresponse` package and provide easy to use,
+easy to extend builting of http responses.
+
+See the package doc and the corresponding tests for examples.
+
+# License
 
 Copyright 2021 Alexander Metzner
 Licensed under the Apache License, Version 2.0 (the "License");

@@ -7,7 +7,7 @@ import (
 	"github.com/halimath/httputils/requesturi"
 )
 
-func Example() {
+func ExampleMiddleware_behindProxy() {
 	h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		http.Redirect(w, r, fmt.Sprintf("%s://%s/some/path", r.URL.Scheme, r.URL.Host), http.StatusTemporaryRedirect)
 	})
