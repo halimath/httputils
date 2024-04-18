@@ -5,11 +5,12 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	"github.com/halimath/expect-go"
+	"github.com/halimath/expect"
+	"github.com/halimath/expect/is"
 	"github.com/halimath/httputils/requestbuilder"
 )
 
-func TestURL(t *testing.T) {
+func TestMiddleware(t *testing.T) {
 	table := map[*http.Request]string{
 		requestbuilder.Get("http://http.host/foo/bar").
 			Request(): "http://http.host/foo/bar",
@@ -18,15 +19,7 @@ func TestURL(t *testing.T) {
 			Request(): "https://https.host/foo/bar",
 	}
 
-	for r, want := range table {
-		var w httptest.ResponseRecorder
-
-		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expect.That(t, r.URL.String()).Is(expect.Equal(want))
-		}))
-
-		f.ServeHTTP(&w, r)
-	}
+	testMiddlewareWithRewriters(t, table)
 }
 
 func TestForwarded(t *testing.T) {
@@ -57,15 +50,7 @@ func TestForwarded(t *testing.T) {
 			Request(): "http://invalid.header/foo/bar",
 	}
 
-	for r, want := range table {
-		var w httptest.ResponseRecorder
-
-		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expect.That(t, r.URL.String()).Is(expect.Equal(want))
-		}), Forwarded)
-
-		f.ServeHTTP(&w, r)
-	}
+	testMiddlewareWithRewriters(t, table, Forwarded)
 }
 
 func TestXForwarded(t *testing.T) {
@@ -86,12 +71,47 @@ func TestXForwarded(t *testing.T) {
 			Request(): "http://forwarded-proto.header/foo/bar",
 	}
 
+	testMiddlewareWithRewriters(t, table, XForwarded)
+}
+
+func TestRewritePath(t *testing.T) {
+	table := map[*http.Request]string{
+		// Match first pattern
+		requestbuilder.Get("http://example.com/foo/bar").
+			Request(): "http://example.com/some/path",
+
+		// Match second pattern
+		requestbuilder.Get("http://example.com/spam/bar").
+			Request(): "http://example.com/another/path",
+
+		// No match in pattern
+		requestbuilder.Get("http://example.com/not/matched").
+			Request(): "http://example.com/not/matched",
+
+		// Too deep to match pattern
+		requestbuilder.Get("http://example.com/spam/intermediate/final").
+			Request(): "http://example.com/spam/intermediate/final",
+	}
+
+	rewriter, err := RewritePath(map[string]string{
+		"/foo/**/*": "/some/path",
+		"/spam/*":   "/another/path",
+	})
+
+	expect.That(t, expect.FailNow(is.NoError(err)))
+
+	testMiddlewareWithRewriters(t, table, rewriter)
+}
+
+func testMiddlewareWithRewriters(t *testing.T, table map[*http.Request]string, rewriteFuncs ...URLRewriter) {
+	t.Helper()
+
 	for r, want := range table {
 		var w httptest.ResponseRecorder
 
 		f := Middleware(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			expect.That(t, r.URL.String()).Is(expect.Equal(want))
-		}), XForwarded)
+			expect.That(t, is.EqualTo(r.URL.String(), want))
+		}), rewriteFuncs...)
 
 		f.ServeHTTP(&w, r)
 	}

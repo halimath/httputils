@@ -3,7 +3,8 @@ package valuecomponents
 import (
 	"testing"
 
-	"github.com/halimath/expect-go"
+	"github.com/halimath/expect"
+	"github.com/halimath/expect/is"
 )
 
 func TestParseToken(t *testing.T) {
@@ -15,7 +16,7 @@ func TestParseToken(t *testing.T) {
 
 	for in, want := range tab {
 		got := ParseToken(in)
-		expect.That(t, got).Is(expect.Equal(want))
+		expect.That(t, is.EqualTo(got, want))
 	}
 }
 
@@ -28,8 +29,10 @@ func TestParseQuotedString(t *testing.T) {
 
 	for in, want := range tab {
 		got, err := ParseQuotedString(in)
-		expect.That(t, err, expect.StopImmediately{}).Is(expect.NoError())
-		expect.That(t, got).Is(expect.Equal(want))
+		expect.That(t,
+			expect.FailNow(is.NoError(err)),
+			is.EqualTo(got, want),
+		)
 	}
 }
 
@@ -86,7 +89,9 @@ func TestParseFieldValueComponents(t *testing.T) {
 
 	for in, want := range tab {
 		got, err := ParseValueList(in)
-		expect.That(t, err, expect.StopImmediately{}).Is(expect.NoError())
-		expect.That(t, got).Is(expect.DeepEqual(want))
+		expect.That(t,
+			expect.FailNow(is.NoError(err)),
+			is.DeepEqualTo(got, want),
+		)
 	}
 }

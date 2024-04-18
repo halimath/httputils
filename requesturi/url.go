@@ -1,11 +1,13 @@
 package requesturi
 
 import (
+	"fmt"
 	"log"
 	"net/http"
 	"net/url"
 	"strings"
 
+	"github.com/halimath/glob"
 	"github.com/halimath/httputils/internal/valuecomponents"
 )
 
@@ -55,7 +57,6 @@ const (
 //
 // - r.URL.Scheme - the protocol being used (http or https)
 // - r.URL.Host - the full host and port as specified by the client
-//
 func Forwarded(r *http.Request) {
 	forwarded, ok := r.Header[HeaderForwarded]
 	if ok && len(forwarded) > 0 {
@@ -126,4 +127,29 @@ func XForwarded(r *http.Request) {
 			}
 		}
 	}
+}
+
+// RewritePath creates a URLRewriter func that rewrites URL paths based on
+// mapping. The keys to mapping are compiled as patterns using
+// [github.com/halimath/glob]. The values are the full paths to rewrite
+// the path to.
+// Patterns are compiled when RewritePath is invoked.
+func RewritePath(mapping map[string]string) (URLRewriter, error) {
+	patternToRewriteTarget := make(map[*glob.Pattern]string, len(mapping))
+	for k, v := range mapping {
+		pat, err := glob.New(k)
+		if err != nil {
+			return nil, fmt.Errorf("failed to compile pattern %q: %v", k, err)
+		}
+		patternToRewriteTarget[pat] = v
+	}
+
+	return func(r *http.Request) {
+		for pat, rewriteTo := range patternToRewriteTarget {
+			if pat.Match(r.URL.Path) {
+				r.URL.Path = rewriteTo
+				return
+			}
+		}
+	}, nil
 }
