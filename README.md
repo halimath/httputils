@@ -308,9 +308,53 @@ easy to extend builting of http responses.
 
 See the package doc and the corresponding tests for examples.
 
+### Problem JSON
+
+One special response helper is capable of sending problem details as described in [RFC9457]. The Problem
+Details RFC defines a JSON (and XML) structure as well as some rules on the field's semantics to report
+useful details from problem results. This module only implements the JSON representation of the RFC.
+
+[RFC9457]: https://www.rfc-editor.org/rfc/rfc9457
+
+## `errmux`
+
+Package `errmux` provides an augmented version of `http.ServeMux` which accept handler methods that return
+`error` values. The multiplexer uses a `http.ServeMux` under the hood and supports all the patterns supported
+by the Go version in use (i.e. all advanced patterns introduced with Go 1.22 if a version >= 1.22 is used).
+
+Any error returned from a handler will be caught and the response written so far will be discarded. The error
+is then handled by an error handler which may be customized producing a final result to send to the client.
+
+See the following example for a short demonstration:
+
+```go
+mux := errmux.NewServeMux()
+
+errMissingQueryParameter := errors.New("missing query parameter")
+
+mux.HandleFunc("/echo", func(w http.ResponseWriter, r *http.Request) error {
+    if msg := r.URL.Query().Get("msg"); len(msg) > 0 {
+        return response.PlainText(w, r, msg)
+    }
+
+    return fmt.Errorf("%w: %s", errMissingQueryParameter, "msg")
+})
+
+mux.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
+    if errors.Is(err, errMissingQueryParameter) {
+        http.Error(w, err.Error(), http.StatusBadRequest)
+        return
+    }
+
+    http.Error(w, err.Error(), http.StatusInternalServerError)
+}
+
+http.ListenAndServe(":8080", mux)
+```
+
 # License
 
-Copyright 2021 Alexander Metzner
+Copyright 2021 - 2024 Alexander Metzner
 Licensed under the Apache License, Version 2.0 (the "License");
 you may not use this file except in compliance with the License.
 You may obtain a copy of the License at
