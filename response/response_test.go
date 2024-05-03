@@ -220,6 +220,56 @@ Content-Type: application/json
 	})
 }
 
+func TestProblem(t *testing.T) {
+	pd := ProblemDetails{
+		Type:     "https://example.com/problem/test",
+		Title:    "Test Problem",
+		Status:   http.StatusInsufficientStorage,
+		Detail:   "A problem arised during testing",
+		Instance: "/some/path/to/instance",
+	}
+
+	t.Run("noDevMode", func(t *testing.T) {
+		got, err := apply(func(w http.ResponseWriter, r *http.Request) error {
+			return Problem(w, r, pd)
+		})
+
+		expect.That(t,
+			is.NoError(err),
+			is.EqualToStringByLines(got, `HTTP/1.1 507 Insufficient Storage
+			Content-Length: 158
+			Content-Type: application/problem+json
+
+			{"type":"https://example.com/problem/test","title":"Test Problem","status":507,"detail":"A problem arised during testing","instance":"/some/path/to/instance"}`, is.DedentLines, func(s string) string { return strings.ReplaceAll(s, "\r", "") }),
+		)
+	})
+
+	t.Run("DevMode", func(t *testing.T) {
+		DevMode = true
+		defer func() { DevMode = false }()
+
+		got, err := apply(func(w http.ResponseWriter, r *http.Request) error {
+			return Problem(w, r, pd)
+		})
+
+		expect.That(t,
+			is.NoError(err),
+			is.EqualToStringByLines(got, `HTTP/1.1 507 Insufficient Storage
+Content-Length: 179
+Content-Type: application/problem+json
+
+{
+  "type": "https://example.com/problem/test",
+  "title": "Test Problem",
+  "status": 507,
+  "detail": "A problem arised during testing",
+  "instance": "/some/path/to/instance"
+}`, func(s string) string { return strings.ReplaceAll(s, "\r", "") }),
+		)
+
+	})
+}
+
 func apply(f func(w http.ResponseWriter, r *http.Request) error) (string, error) {
 	w := httptest.NewRecorder()
 	r := httptest.NewRequest("get", "https://example.com/some/path", nil)

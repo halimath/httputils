@@ -120,10 +120,16 @@ func buildErrorResponse(err error) string {
 	return sb.String()
 }
 
-// Forbidded sends a plain text response with status code 403 ([http.StatusForbidden]).
-// opts may customize both headers.
+// Forbidden sends a plain text response with status code 403 ([http.StatusForbidden]).
+// opts may customize headers.
 func Forbidden(w http.ResponseWriter, r *http.Request, opts ...Option) error {
 	return PlainText(w, r, http.StatusText(http.StatusForbidden), append(opts, StatusCode(http.StatusForbidden))...)
+}
+
+// NotFound sends a plain text response with status code 404 ([http.StatusNotFound]).
+// opts may customize headers.
+func NotFound(w http.ResponseWriter, r *http.Request, opts ...Option) error {
+	return PlainText(w, r, http.StatusText(http.StatusNotFound), append(opts, StatusCode(http.StatusNotFound))...)
 }
 
 // PlainText sends a response with a plain text body. It sends body as the
@@ -176,4 +182,42 @@ func JSON(w http.ResponseWriter, r *http.Request, payload any, opts ...Option) e
 		SetHeader("Content-Length", strconv.Itoa(len(data)), true),
 		WriteBody(data),
 	)...)
+}
+
+// ProblemDetails defines a problem details object as defined by [RFC9457].
+// ProblemDetails defines an Errors field which may be used to deliver additional
+// error information as an extension.
+//
+// [RFC9457]: https://www.rfc-editor.org/rfc/rfc9457
+type ProblemDetails struct {
+	// Type discriminator - must be given
+	Type string `json:"type"`
+
+	// Human readable title - must be given
+	Title string `json:"title"`
+
+	// Status code - may be set. If set, also defines the HTTP status code
+	Status int `json:"status,omitempty"`
+
+	// Additional human readable details - optional
+	Detail string `json:"detail,omitempty"`
+
+	// Identifier pointing to the instance that caused this problem - optional
+	Instance string `json:"instance,omitempty"`
+
+	// Additional user defined error information - optional and used as an extension
+	Errors []any `json:"errors,omitempty"`
+}
+
+// Problem sends problemDetails as a JSON response as defined by [RFC9457].
+//
+// [RFC9457]: https://www.rfc-editor.org/rfc/rfc9457
+func Problem(w http.ResponseWriter, r *http.Request, problemDetails ProblemDetails, opts ...Option) error {
+	status := http.StatusInternalServerError
+
+	if problemDetails.Status != 0 {
+		status = problemDetails.Status
+	}
+
+	return JSON(w, r, problemDetails, SetHeader("Content-Type", "application/problem+json", true), StatusCode(status))
 }
