@@ -213,7 +213,7 @@ To generally allow access to all resources (i.e. endpoints) from all origins use
 // restAPI is a http.Handler that defines some kind of resource.
 restAPI := http.NewServeMux()
 
-http.ListenAndServe(":1234", cors.Middleware(restAPI))
+http.ListenAndServe(":1234", cors.Middleware()(restAPI))
 ```
 
 To enable CORS for specific endpoints and/or origins, you can pass additional configuration arguments to the
@@ -225,7 +225,6 @@ restAPI := http.NewServeMux()
 
 http.ListenAndServe(":1234",
     cors.Middleware(
-        restAPI,
         cors.Endpoint{
             Path: "/api/v1/resource1",
         },
@@ -234,7 +233,7 @@ http.ListenAndServe(":1234",
             AllowMethods:     []string{http.MethodPost},
             AllowCredentials: true,
         },
-    ),
+    )(restAPI),
 )
 ```
 
