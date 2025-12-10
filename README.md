@@ -352,6 +352,23 @@ mux.ErrorHandler = func(w http.ResponseWriter, r *http.Request, err error) {
 http.ListenAndServe(":8080", mux)
 ```
 
+## Security Header
+
+Package `securityheader` provides a configurable middleware to inject common
+security-related response header.
+
+```go
+var h http.Handler
+
+// ...
+
+h = securityheader.Middleware(
+    securityheader.ContentSecurityPolicy(
+        securityheader.CSPPolicyDirective(securityheader.CSPDefaultSrc, securityheader.CSPSelf)),
+    securityheader.StrictTransportSecurity(),
+)(h)
+```
+
 # License
 
 Copyright 2021 - 2024 Alexander Metzner
