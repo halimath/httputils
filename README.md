@@ -19,7 +19,10 @@ $ go get github.com/halimath/httputils
 # Usage
 
 `httputils` contains a set of different features that can be used independently or together. The following
-sections each describe a single feature.
+sections each describe a single feature. 
+
+In addition to this, the base package `httputils` provides a `Middleware` type as well as convenience
+function `Compose` to compose multiple `Middleware`s into a single one.
 
 ## Authorization
 
@@ -32,37 +35,22 @@ Currently, _Basic Auth_ and _Bearer Token_ are supported but the middleware allo
 The following example demonstrates how to use the `auth` package.
 
 ```go
-// h is a http.Handler, that actualy handles the request.
-h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-    w.Header().Set("Content-Type", "text/plain")
-
-    // We can assume here that auth is always set. See below
-    a := auth.GetAuthorization(r.Context())
-
-    switch a.(type) {
-    case *auth.UsernamePassword:
-        // Use username/password to authorize the usert
-    case *auth.BearerToken:
-        // Decode token and authorizes
-    }
-})
-
-http.ListenAndServe(":1234",
-    auth.Bearer(
-        auth.Basic(
-            auth.Authorized(h,
-                auth.AuthenticationChallenge{
-                    Scheme: auth.AuthorizationSchemeBasic,
-                    Realm:  "test",
-                },
-                auth.AuthenticationChallenge{
-                    Scheme: auth.AuthorizationSchemeBearer,
-                    Realm:  "test",
-                },
-            ),
-        ),
+authMW := httputils.Compose(
+    auth.Authorized(
+        auth.AuthenticationChallenge{
+            Scheme: auth.AuthorizationSchemeBasic,
+            Realm:  "test",
+        },
+        auth.AuthenticationChallenge{
+            Scheme: auth.AuthorizationSchemeBearer,
+            Realm:  "test",
+        },
     ),
+    auth.Bearer(),
+    auth.Basic(),
 )
+
+http.ListenAndServe(":1234", authMW(h))
 ```
 
 In the example above `h` is a simple `http.Handler`; replace it with your "real" handler implementation. 
@@ -72,16 +60,16 @@ You can also use any kind of framework here as long as the framework's router im
 The call to `ListenAndServe` uses three middleware that wrap each other with the inner most wrapping `h`. 
 Let's go through them from outer to inner:
 
+* `auth.Basic` creates a middleware that tries to extracts any _Basic Auth_ credentials and - if found - stores
+    them in the requests context. It always invokes the wrapped handler.
 * `auth.Bearer` creates a middleware that tries to extract a _Token Bearer Authorization_ credentials
-  from the request and - if found - stores the credentials in the requests's context. It always invokes
-  the wrapped handler.
-* `auth.Basic` creates a middleware that extracts any _Basic Auth_ credentials and stores them in the 
-  requests context. It always invokes the wrapped handler.
+    from the request and - if found - stores the credentials in the requests's context. It always invokes
+    the wrapped handler.
 * `auth.Authorized` creates a middleware that checks if the request's context contains a non-`nil`
-  Authorization (extracted from either of the above middlewares). If such an authorization is found
-  the wrapped handler is invoked. If no authoriation has been found, the request is rejected with
-  a HTTP status code `401 Unauthorized` and a `WWW-Authentication` header is added with the given
-  HTTP authentication challenges.
+    Authorization (extracted from either of the above middlewares). If such an authorization is found
+    the wrapped handler is invoked. If no authoriation has been found, the request is rejected with
+    a HTTP status code `401 Unauthorized` and a `WWW-Authentication` header is added with the given
+    HTTP authentication challenges.
 
 It's important to keep the order of the middlewares correct: 
 
@@ -133,18 +121,8 @@ h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
     // ...
 })
 
-http.ListenAndServe(":1234",
+authMW := httputils.Compose(
     auth.AuthHandler(
-        auth.Authorized(h,
-            auth.AuthenticationChallenge{
-                Scheme: auth.AuthorizationSchemeBasic,
-                Realm:  "test",
-            },
-            auth.AuthenticationChallenge{
-                Scheme: auth.AuthorizationSchemeBearer,
-                Realm:  "test",
-            },
-        ),
         "Hmac",
         func(credentials string) auth.Authorization {
             parts := strings.Split(credentials, ":")
@@ -163,7 +141,19 @@ http.ListenAndServe(":1234",
             }
         },
     ),
+    auth.Authorized(
+        auth.AuthenticationChallenge{
+            Scheme: auth.AuthorizationSchemeBasic,
+            Realm:  "test",
+        },
+        auth.AuthenticationChallenge{
+            Scheme: auth.AuthorizationSchemeBearer,
+            Realm:  "test",
+        },
+    ),
 )
+
+http.ListenAndServe(":1234", authMW(h))
 ```
 
 ### A note on how to verify the credentials
@@ -213,7 +203,7 @@ To generally allow access to all resources (i.e. endpoints) from all origins use
 // restAPI is a http.Handler that defines some kind of resource.
 restAPI := http.NewServeMux()
 
-http.ListenAndServe(":1234", cors.Middleware(restAPI))
+http.ListenAndServe(":1234", cors.Middleware()(restAPI))
 ```
 
 To enable CORS for specific endpoints and/or origins, you can pass additional configuration arguments to the
@@ -225,7 +215,6 @@ restAPI := http.NewServeMux()
 
 http.ListenAndServe(":1234",
     cors.Middleware(
-        restAPI,
         cors.Endpoint{
             Path: "/api/v1/resource1",
         },
@@ -234,7 +223,7 @@ http.ListenAndServe(":1234",
             AllowMethods:     []string{http.MethodPost},
             AllowCredentials: true,
         },
-    ),
+    )(restAPI),
 )
 ```
 

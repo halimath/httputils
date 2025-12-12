@@ -10,6 +10,8 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+
+	"github.com/halimath/httputils"
 )
 
 type contextKeyAuthType string
@@ -77,12 +79,12 @@ func (a *AuthenticationChallenge) toHeader() string {
 	return b.String()
 }
 
-// Authorized creates a http middleware wrapping h that checks if the
+// Authorized creates a http middleware that checks if the
 // request carries an Authorization (using GetAuthorization). If no
 // authorization is found, the request is rejected with a HTTP status
 // 401 (Unauthorized). The response contains a WWW-Authenticate header
 // with the given challenges.
-func Authorized(h http.Handler, challenge AuthenticationChallenge, moreChallenges ...AuthenticationChallenge) http.Handler {
+func Authorized(challenge AuthenticationChallenge, moreChallenges ...AuthenticationChallenge) httputils.Middleware {
 	var b strings.Builder
 	b.WriteString(challenge.toHeader())
 
@@ -93,15 +95,17 @@ func Authorized(h http.Handler, challenge AuthenticationChallenge, moreChallenge
 
 	wwwAuthenticateHeader := b.String()
 
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		if GetAuthorization(r.Context()) == nil {
-			w.Header().Add(HeaderWWWAuthenticate, wwwAuthenticateHeader)
-			w.WriteHeader(http.StatusUnauthorized)
-			return
-		}
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			if GetAuthorization(r.Context()) == nil {
+				w.Header().Add(HeaderWWWAuthenticate, wwwAuthenticateHeader)
+				w.WriteHeader(http.StatusUnauthorized)
+				return
+			}
 
-		h.ServeHTTP(w, r)
-	})
+			h.ServeHTTP(w, r)
+		})
+	}
 }
 
 // Authorization is a tagging interface implemented by all types of authentication Authorization.
@@ -117,12 +121,12 @@ type UsernamePassword struct {
 	Password string
 }
 
-// Basic creates a http middleware wrapping h which extracts basic
+// Basic creates a http middleware which extracts basic
 // autorization credentials as specified in RFC 7617 and stores them
 // in the request's context. Use GetAuthorization to extract the authorization.
 // (https://datatracker.ietf.org/doc/html/rfc7617)
-func Basic(h http.Handler) http.Handler {
-	return AuthHandler(h, AuthorizationSchemeBasic, func(c string) Authorization {
+func Basic() httputils.Middleware {
+	return AuthHandler(AuthorizationSchemeBasic, func(c string) Authorization {
 		pair, err := base64.StdEncoding.DecodeString(c)
 		if err != nil {
 			return nil
@@ -154,8 +158,8 @@ type BearerToken struct {
 // RFC 6750, section 2.1. Note that only header based authorization
 // is implemented.
 // (https://datatracker.ietf.org/doc/html/rfc6750#section-2.1)
-func Bearer(h http.Handler) http.Handler {
-	return AuthHandler(h, AuthorizationSchemeBearer, func(t string) Authorization {
+func Bearer() httputils.Middleware {
+	return AuthHandler(AuthorizationSchemeBearer, func(t string) Authorization {
 		return &BearerToken{
 			Token: t,
 		}
@@ -165,27 +169,29 @@ func Bearer(h http.Handler) http.Handler {
 // AuthorizationBuilder builds an Authorization value from the given credentials string.
 type AuthorizationBuilder func(credentials string) Authorization
 
-// AuthHandler creates a http middleware wrapping h that accepts Authoriation request headers
+// AuthHandler creates a http middleware that accepts Authoriation request headers
 // using the authorization scheme. It forwards the credentials given after scheme to ab in
 // order to build an Authorization object.
-func AuthHandler(h http.Handler, scheme string, ab AuthorizationBuilder) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		auths, ok := r.Header[HeaderAuthorization]
+func AuthHandler(scheme string, ab AuthorizationBuilder) httputils.Middleware {
+	return func(h http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			auths, ok := r.Header[HeaderAuthorization]
 
-		if ok {
-			for _, auth := range auths {
-				if !strings.HasPrefix(auth, scheme) {
-					continue
-				}
+			if ok {
+				for _, auth := range auths {
+					if !strings.HasPrefix(auth, scheme) {
+						continue
+					}
 
-				a := ab(strings.TrimSpace(auth[len(scheme):]))
+					a := ab(strings.TrimSpace(auth[len(scheme):]))
 
-				if a != nil {
-					r = r.WithContext(WithAuthorization(r.Context(), a))
+					if a != nil {
+						r = r.WithContext(WithAuthorization(r.Context(), a))
+					}
 				}
 			}
-		}
 
-		h.ServeHTTP(w, r)
-	})
+			h.ServeHTTP(w, r)
+		})
+	}
 }

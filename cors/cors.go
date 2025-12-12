@@ -5,6 +5,8 @@ package cors
 import (
 	"net/http"
 	"strings"
+
+	"github.com/halimath/httputils"
 )
 
 const (
@@ -81,54 +83,56 @@ func (e Endpoint) allowsOrigin(origin string) bool {
 // then used to process requests.
 var allEndpoint = Endpoint{}
 
-// Middleware creates a http.Handler delegating to the given handler (thus it is a middleware) preforming
+// Middleware creates a HTTP middleware enabling
 // Cross-Origin Resource Sharing by adding response headers and handling pre-flight requests.
 // Pre-flight requests (using the HTTP method OPTIONS) are handled completely by this middleware and are not
 // forwarded downstream. Other requests are forwarded to handler but HTTP response headers are set beforehand.
-func Middleware(handler http.Handler, endpoints ...Endpoint) http.Handler {
-	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		// Check if the request carries an Origin header.
-		if !isCrossOrigin(r) {
-			// If not, simply send it downstream.
-			handler.ServeHTTP(w, r)
-			return
-		}
+func Middleware(endpoints ...Endpoint) httputils.Middleware {
+	return func(handler http.Handler) http.Handler {
+		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			// Check if the request carries an Origin header.
+			if !isCrossOrigin(r) {
+				// If not, simply send it downstream.
+				handler.ServeHTTP(w, r)
+				return
+			}
 
-		// Determine the endpoint that's applicable for the request.
-		endpoint, ok := findEndpoint(r, endpoints)
+			// Determine the endpoint that's applicable for the request.
+			endpoint, ok := findEndpoint(r, endpoints)
 
-		if ok {
-			// If an endpoint has been configured, determine the origin.
-			origin := r.Header.Get(RequestHeaderOrigin)
+			if ok {
+				// If an endpoint has been configured, determine the origin.
+				origin := r.Header.Get(RequestHeaderOrigin)
 
-			if endpoint.allowsOrigin(origin) {
-				// If the origin is allowed by the endpoint configuration, add the respective Allow-* headers
-				// based on the configuration.
-				w.Header().Add(ResponseHeaderAllowOrigin, origin)
+				if endpoint.allowsOrigin(origin) {
+					// If the origin is allowed by the endpoint configuration, add the respective Allow-* headers
+					// based on the configuration.
+					w.Header().Add(ResponseHeaderAllowOrigin, origin)
 
-				if len(endpoint.AllowMethods) > 0 {
-					w.Header().Add(ResponseHeaderAllowMethods, strings.Join(endpoint.AllowMethods, ", "))
-				}
+					if len(endpoint.AllowMethods) > 0 {
+						w.Header().Add(ResponseHeaderAllowMethods, strings.Join(endpoint.AllowMethods, ", "))
+					}
 
-				if len(endpoint.AllowHeaders) > 0 {
-					w.Header().Add(ResponseHeaderAllowHeaders, strings.Join(endpoint.AllowHeaders, ", "))
-				}
+					if len(endpoint.AllowHeaders) > 0 {
+						w.Header().Add(ResponseHeaderAllowHeaders, strings.Join(endpoint.AllowHeaders, ", "))
+					}
 
-				if endpoint.AllowCredentials {
-					w.Header().Add(ResponseHeaderAllowCredentials, "true")
+					if endpoint.AllowCredentials {
+						w.Header().Add(ResponseHeaderAllowCredentials, "true")
+					}
 				}
 			}
-		}
 
-		if isPreflight(r) {
-			// If this is a preflight request, send a response and do not send the request downstream.
-			w.WriteHeader(http.StatusNoContent)
-			return
-		}
+			if isPreflight(r) {
+				// If this is a preflight request, send a response and do not send the request downstream.
+				w.WriteHeader(http.StatusNoContent)
+				return
+			}
 
-		// In any other way, send the request downstream.
-		handler.ServeHTTP(w, r)
-	})
+			// In any other way, send the request downstream.
+			handler.ServeHTTP(w, r)
+		})
+	}
 }
 
 func findEndpoint(r *http.Request, endpoints []Endpoint) (Endpoint, bool) {

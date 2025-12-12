@@ -30,7 +30,7 @@ func TestMiddleware_noCorsRequest(t *testing.T) {
 	r := httptest.NewRequest(http.MethodGet, "/", nil)
 	w := httptest.NewRecorder()
 
-	m := Middleware(h)
+	m := Middleware()(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t, is.EqualTo(w.Result().StatusCode, http.StatusOK))
@@ -41,7 +41,7 @@ func TestMiddleware_corsRequest(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h)
+	m := Middleware()(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,
@@ -55,7 +55,7 @@ func TestMiddleware_preflightRequest(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h)
+	m := Middleware()(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,
@@ -69,12 +69,12 @@ func TestMiddleware_corsRequestWithCustomAllows(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h, Endpoint{
+	m := Middleware(Endpoint{
 		Path:             "/",
 		AllowMethods:     []string{http.MethodGet, http.MethodPost},
 		AllowHeaders:     []string{"Authorization"},
 		AllowCredentials: true,
-	})
+	})(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,
@@ -91,10 +91,10 @@ func TestMiddleware_corsRequestWithWildcardOrigin(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h, Endpoint{
+	m := Middleware(Endpoint{
 		Path:         "/",
 		AllowOrigins: []string{Wildcard},
-	})
+	})(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,
@@ -108,10 +108,10 @@ func TestMiddleware_corsRequestWithListedOrigins(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h, Endpoint{
+	m := Middleware(Endpoint{
 		Path:         "/",
 		AllowOrigins: []string{"https://example.com", "http://example.com"},
-	})
+	})(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,
@@ -125,10 +125,10 @@ func TestMiddleware_corsRequestWithListedOriginsButNoneMatches(t *testing.T) {
 	r.Header.Add(RequestHeaderOrigin, "https://example.com")
 	w := httptest.NewRecorder()
 
-	m := Middleware(h, Endpoint{
+	m := Middleware(Endpoint{
 		Path:         "/",
 		AllowOrigins: []string{"http://foobar.com"},
-	})
+	})(h)
 	m.ServeHTTP(w, r)
 
 	expect.That(t,

@@ -10,7 +10,7 @@ func Example_allOrigins() {
 	// restAPI is a http.Handler that defines some kind of resource.
 	restAPI := http.NewServeMux()
 
-	http.ListenAndServe(":1234", cors.Middleware(restAPI))
+	http.ListenAndServe(":1234", cors.Middleware()(restAPI))
 }
 
 func Example_customOrigins() {
@@ -19,7 +19,6 @@ func Example_customOrigins() {
 
 	http.ListenAndServe(":1234",
 		cors.Middleware(
-			restAPI,
 			cors.Endpoint{
 				Path: "/api/v1/resource1",
 			},
@@ -28,6 +27,6 @@ func Example_customOrigins() {
 				AllowMethods:     []string{http.MethodPost},
 				AllowCredentials: true,
 			},
-		),
+		)(restAPI),
 	)
 }
