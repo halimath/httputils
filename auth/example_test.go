@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/halimath/httputils"
 	"github.com/halimath/httputils/auth"
 )
 
@@ -24,22 +25,22 @@ func Example() {
 		}
 	})
 
-	http.ListenAndServe(":1234",
-		auth.Basic(
-			auth.Bearer(
-				auth.Authorized(h,
-					auth.AuthenticationChallenge{
-						Scheme: auth.AuthorizationSchemeBasic,
-						Realm:  "test",
-					},
-					auth.AuthenticationChallenge{
-						Scheme: auth.AuthorizationSchemeBearer,
-						Realm:  "test",
-					},
-				),
-			),
+	authMW := httputils.Compose(
+		auth.Authorized(
+			auth.AuthenticationChallenge{
+				Scheme: auth.AuthorizationSchemeBasic,
+				Realm:  "test",
+			},
+			auth.AuthenticationChallenge{
+				Scheme: auth.AuthorizationSchemeBearer,
+				Realm:  "test",
+			},
 		),
+		auth.Bearer(),
+		auth.Basic(),
 	)
+
+	http.ListenAndServe(":1234", authMW(h))
 }
 
 func Example_custom() {
@@ -52,18 +53,8 @@ func Example_custom() {
 		// ...
 	})
 
-	http.ListenAndServe(":1234",
+	authMW := httputils.Compose(
 		auth.AuthHandler(
-			auth.Authorized(h,
-				auth.AuthenticationChallenge{
-					Scheme: auth.AuthorizationSchemeBasic,
-					Realm:  "test",
-				},
-				auth.AuthenticationChallenge{
-					Scheme: auth.AuthorizationSchemeBearer,
-					Realm:  "test",
-				},
-			),
 			"Hmac",
 			func(credentials string) auth.Authorization {
 				parts := strings.Split(credentials, ":")
@@ -82,5 +73,17 @@ func Example_custom() {
 				}
 			},
 		),
+		auth.Authorized(
+			auth.AuthenticationChallenge{
+				Scheme: auth.AuthorizationSchemeBasic,
+				Realm:  "test",
+			},
+			auth.AuthenticationChallenge{
+				Scheme: auth.AuthorizationSchemeBearer,
+				Realm:  "test",
+			},
+		),
 	)
+
+	http.ListenAndServe(":1234", authMW(h))
 }
