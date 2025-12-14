@@ -227,6 +227,41 @@ http.ListenAndServe(":1234",
 )
 ```
 
+## Session
+
+Package `session` contains an middleware to implement server-side session management.
+The middleware can be customized with different session storage backends. The
+package ships with an in-memory implementation. All session ids are generated
+using a cryptographically secure random number generator and are stored in a
+secure session cookie, which can also be customized.
+
+The session middleware handles session creation, lookup and cleanup. The session
+is stored in the request’s context and can be used by downstream request handlers.
+
+The following example sketches how to use the session middleware:
+
+```go
+ctx, cancel := context.WithCancel(context.Background())
+defer cancel()
+
+sessionMiddleware := session.NewMiddleware(
+    session.WithStore(session.NewInMemoryStore(
+        session.WithContext(ctx),
+        session.WithMaxTTL(5*time.Minute),
+    )),
+)
+
+var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+    ses := session.FromRequest(r)
+    c := session.Get[int](ses, "req_count")
+    fmt.Println(c)
+    ses.Set("req_count", c+1)
+    w.WriteHeader(http.StatusNoContent)
+})
+
+handler = sessionMiddleware(handler)
+```
+
 ## Request Builder (for tests)
 
 Package `requestbuilder` contains a builder that can be used to build `http.Request` values during tests.
