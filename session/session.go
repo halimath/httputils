@@ -219,15 +219,10 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 				}
 				logger.Logs("no previous session found; creating new one", kvlog.WithKV("id", ses.ID()))
 
-				domain := mw.cookie.Domain
-				if len(domain) == 0 {
-					domain = r.Host
-				}
-
 				http.SetCookie(w, &http.Cookie{
 					Name:     mw.cookie.Name,
 					Value:    ses.ID(),
-					Domain:   domain,
+					Domain:   mw.cookie.Domain,
 					HttpOnly: true,
 					Path:     mw.cookie.Path,
 					Secure:   r.URL.Scheme == "https",
