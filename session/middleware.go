@@ -3,7 +3,6 @@ package session
 import (
 	"errors"
 	"net/http"
-	"strings"
 	"time"
 
 	"github.com/halimath/httputils"
@@ -58,10 +57,10 @@ func WithCookieOptions(opts CookieOpts) Option {
 
 // NewMiddleware creates a new HTTP middleware that adds session
 // management. By default, the [Store] in use is an in-memory store. The
-// session id is stored in a HTTP cookie with the name set to __Secure-Session-ID,
+// session id is stored in a HTTP cookie with the name set to session_id,
 // the path to /, max-age to 30min and SameSite set to
 // strict. Secure is set to true if the request uses HTTPS. Use
-// [WithCookieOptions] to customize the cookie. HttpOnly set always set to true.
+// [WithCookieOptions] to customize the cookie. HttpOnly is always set to true.
 //
 // The middleware adds the [Session] associated with each request to the
 // request’s context; use [FromContext] function to extract the session from
@@ -69,7 +68,7 @@ func WithCookieOptions(opts CookieOpts) Option {
 func NewMiddleware(opts ...Option) httputils.Middleware {
 	mw := &middleware{
 		cookie: CookieOpts{
-			Name:     "Session-ID",
+			Name:     "session_id",
 			Path:     "/",
 			MaxAge:   30 * time.Minute,
 			SameSite: http.SameSiteStrictMode,
@@ -86,17 +85,12 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 
 	return func(handler http.Handler) http.Handler {
 		return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-			cookieName := mw.cookie.Name
-			if isSecureRequest(r) {
-				cookieName = cookieNamePrefixSecure + cookieName
-			}
-
 			logger := kvlog.FromContext(r.Context())
 
 			var ses Session
 			var err error
 
-			cookie, err := r.Cookie(cookieName)
+			cookie, err := r.Cookie(mw.cookie.Name)
 			if err != http.ErrNoCookie {
 				id := cookie.Value
 				ses, err = mw.store.Load(id)
@@ -122,7 +116,7 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 				logger.Logs("no previous session found; creating new one", kvlog.WithKV("id", ses.ID()))
 
 				http.SetCookie(w, &http.Cookie{
-					Name:     cookieName,
+					Name:     mw.cookie.Name,
 					Value:    ses.ID(),
 					Domain:   mw.cookie.Domain,
 					HttpOnly: true,
@@ -148,26 +142,4 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 			}
 		})
 	}
-}
-
-func isSecureRequest(r *http.Request) bool {
-	// Direct TLS connection
-	if r.TLS != nil {
-		return true
-	}
-
-	// Forwarded request header
-	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
-		if strings.Contains(forwarded, "proto=https") {
-			return true
-		}
-	}
-
-	// Legacy X-Forwarded-Proto header
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
-		return true
-	}
-
-	// Parsed request URL
-	return r.URL.Scheme == "https"
 }

@@ -42,7 +42,7 @@ func TestMiddleware(t *testing.T) {
 
 		cookies := rw.Result().Cookies()
 		expect.That(t,
-			is.EqualTo("__Secure-mycookie", cookies[0].Name),
+			is.EqualTo("mycookie", cookies[0].Name),
 			is.SliceOfLen(rw.Result().Cookies(), 1),
 		)
 	})
