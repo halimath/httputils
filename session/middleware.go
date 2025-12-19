@@ -3,13 +3,12 @@ package session
 import (
 	"errors"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/halimath/httputils"
 	"github.com/halimath/kvlog"
 )
-
-const cookieNamePrefixSecure = "__Secure-"
 
 type CookieOpts struct {
 	Name     string
@@ -58,9 +57,10 @@ func WithCookieOptions(opts CookieOpts) Option {
 // NewMiddleware creates a new HTTP middleware that adds session
 // management. By default, the [Store] in use is an in-memory store. The
 // session id is stored in a HTTP cookie with the name set to session_id,
-// the path to /, max-age to 30min and SameSite set to
+// the path to /, max-age to 5min and SameSite set to
 // strict. Secure is set to true if the request uses HTTPS. Use
 // [WithCookieOptions] to customize the cookie. HttpOnly is always set to true.
+// The cookie will automatically be prolonged on every request.
 //
 // The middleware adds the [Session] associated with each request to the
 // request’s context; use [FromContext] function to extract the session from
@@ -70,7 +70,7 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 		cookie: CookieOpts{
 			Name:     "session_id",
 			Path:     "/",
-			MaxAge:   30 * time.Minute,
+			MaxAge:   5 * time.Minute,
 			SameSite: http.SameSiteStrictMode,
 		},
 	}
@@ -115,19 +115,21 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 				}
 				logger.Logs("no previous session found; creating new one", kvlog.WithKV("id", ses.ID()))
 
-				http.SetCookie(w, &http.Cookie{
-					Name:     mw.cookie.Name,
-					Value:    ses.ID(),
-					Domain:   mw.cookie.Domain,
-					HttpOnly: true,
-					Path:     mw.cookie.Path,
-					Secure:   r.URL.Scheme == "https",
-					MaxAge:   int(mw.cookie.MaxAge.Seconds()),
-					SameSite: mw.cookie.SameSite,
-				})
 			}
 
 			ses.SetLastAccessed(time.Now())
+
+			// Set cookie for every request to extend the cookie’s max age.
+			http.SetCookie(w, &http.Cookie{
+				Name:     mw.cookie.Name,
+				Value:    ses.ID(),
+				Domain:   mw.cookie.Domain,
+				HttpOnly: true,
+				Path:     mw.cookie.Path,
+				Secure:   isSecureRequest(r),
+				MaxAge:   int(mw.cookie.MaxAge.Seconds()),
+				SameSite: mw.cookie.SameSite,
+			})
 
 			ctx := r.Context()
 			r = r.WithContext(withSession(ctx, ses))
@@ -142,4 +144,26 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 			}
 		})
 	}
+}
+
+func isSecureRequest(r *http.Request) bool {
+	// Direct TLS connection
+	if r.TLS != nil {
+		return true
+	}
+
+	// Forwarded request header
+	if forwarded := r.Header.Get("Forwarded"); forwarded != "" {
+		if strings.Contains(forwarded, "proto=https") {
+			return true
+		}
+	}
+
+	// Legacy X-Forwarded-Proto header
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		return true
+	}
+
+	// Parsed request URL
+	return r.URL.Scheme == "https"
 }

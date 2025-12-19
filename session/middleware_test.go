@@ -5,6 +5,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/halimath/expect"
 	"github.com/halimath/expect/is"
@@ -15,17 +16,28 @@ func TestMiddleware(t *testing.T) {
 	t.Run("withCookieOption", func(t *testing.T) {
 		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
 
-		mw := NewMiddleware(WithCookieOptions(CookieOpts{Name: "mycookie"}))(h)
+		mw := NewMiddleware(WithCookieOptions(CookieOpts{
+			Name:     "mycookie",
+			Path:     "/foo",
+			Domain:   "example.com",
+			MaxAge:   time.Minute,
+			SameSite: http.SameSiteLaxMode,
+		}))(h)
 
 		rw := httptest.NewRecorder()
-		req := httptest.NewRequest("GET", "/", nil)
+		req := httptest.NewRequest("GET", "/foo", nil)
 
 		mw.ServeHTTP(rw, req)
 
 		cookies := rw.Result().Cookies()
 		expect.That(t,
-			is.EqualTo("mycookie", cookies[0].Name),
 			is.SliceOfLen(rw.Result().Cookies(), 1),
+			is.EqualTo("mycookie", cookies[0].Name),
+			is.EqualTo("/foo", cookies[0].Path),
+			is.EqualTo("example.com", cookies[0].Domain),
+			is.EqualTo(60, cookies[0].MaxAge),
+			is.EqualTo(http.SameSiteLaxMode, cookies[0].SameSite),
+			is.EqualTo(false, cookies[0].Secure),
 		)
 	})
 
@@ -42,8 +54,9 @@ func TestMiddleware(t *testing.T) {
 
 		cookies := rw.Result().Cookies()
 		expect.That(t,
-			is.EqualTo("mycookie", cookies[0].Name),
 			is.SliceOfLen(rw.Result().Cookies(), 1),
+			is.EqualTo("mycookie", cookies[0].Name),
+			is.EqualTo(true, cookies[0].Secure),
 		)
 	})
 
@@ -83,6 +96,8 @@ func TestMiddleware(t *testing.T) {
 		req.AddCookie(&http.Cookie{Name: "sid", Value: ses.ID()})
 
 		mw.ServeHTTP(rw, req)
+
+		expect.That(t, is.SliceOfLen(rw.Result().Cookies(), 1))
 	})
 
 	t.Run("createNewSessionIfMissing", func(t *testing.T) {
