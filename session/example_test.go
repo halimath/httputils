@@ -17,8 +17,8 @@ func Example() {
 	sessionMiddleware := session.NewMiddleware(
 		session.WithStore(session.NewInMemoryStore(
 			session.WithContext(ctx),
-			session.WithMaxTTL(5*time.Minute),
 		)),
+		session.WithMaxAge(30*time.Minute),
 	)
 
 	var handler http.Handler = http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {

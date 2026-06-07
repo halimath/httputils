@@ -97,6 +97,11 @@ var ErrSessionNotFound = errors.New("session not found")
 // Store defines the interface for session backend storage. It’s the store’s
 // responsibility to synchronize concurrent access accordingly.
 type Store interface {
+	// Sets the max age for each session. When invoked the implementation
+	// must schedule any operation to delete expired sessions. If maxAge is zero or negative, sessions should
+	// never expire.
+	SetMaxAge(maxAge time.Duration)
+
 	// Create creates a new session, stores it in this store and returns it.
 	Create() (ses Session, err error)
 

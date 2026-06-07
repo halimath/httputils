@@ -120,4 +120,23 @@ func TestMiddleware(t *testing.T) {
 		// Cookie should be set
 		expect.That(t, is.SliceOfLen(rw.Result().Cookies(), 1))
 	})
+
+	t.Run("withMaxAgeOption", func(t *testing.T) {
+		h := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {})
+
+		store := NewInMemoryStore()
+
+		mw := NewMiddleware(WithStore(store), WithMaxAge(2*time.Minute))(h)
+
+		rw := httptest.NewRecorder()
+		req := httptest.NewRequest("GET", "/", nil)
+
+		mw.ServeHTTP(rw, req)
+
+		cookies := rw.Result().Cookies()
+		expect.That(t,
+			is.SliceOfLen(rw.Result().Cookies(), 1),
+			is.EqualTo(120, cookies[0].MaxAge),
+		)
+	})
 }

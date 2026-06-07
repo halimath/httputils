@@ -54,6 +54,14 @@ func WithCookieOptions(opts CookieOpts) Option {
 	}
 }
 
+// Sets session max age. This affects both the cookie max age and the session store’s max age.
+// Must be provided after WithCookieOptions.
+func WithMaxAge(maxAge time.Duration) Option {
+	return func(m *middleware) {
+		m.cookie.MaxAge = maxAge
+	}
+}
+
 // NewMiddleware creates a new HTTP middleware that adds session
 // management. By default, the [Store] in use is an in-memory store. The
 // session id is stored in a HTTP cookie with the name set to session_id,
@@ -81,6 +89,10 @@ func NewMiddleware(opts ...Option) httputils.Middleware {
 
 	if mw.store == nil {
 		mw.store = NewInMemoryStore()
+	}
+
+	if mw.cookie.MaxAge != 0 {
+		mw.store.SetMaxAge(mw.cookie.MaxAge)
 	}
 
 	return func(handler http.Handler) http.Handler {
