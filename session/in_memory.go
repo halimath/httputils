@@ -58,17 +58,12 @@ func (ses *inMemorySession) SetLastAccessed(la time.Time) {
 type inMemoryStore struct {
 	values map[string]Session
 	lock   sync.RWMutex
-	maxTTL time.Duration
+	maxAge time.Duration
 	ctx    context.Context
+	cancel context.CancelFunc
 }
 
 type InMemoryStoreOption func(*inMemoryStore)
-
-func WithMaxTTL(maxTTL time.Duration) InMemoryStoreOption {
-	return func(ims *inMemoryStore) {
-		ims.maxTTL = maxTTL
-	}
-}
 
 func WithContext(ctx context.Context) InMemoryStoreOption {
 	return func(ims *inMemoryStore) {
@@ -85,7 +80,6 @@ func WithContext(ctx context.Context) InMemoryStoreOption {
 func NewInMemoryStore(opts ...InMemoryStoreOption) Store {
 	s := &inMemoryStore{
 		values: make(map[string]Session),
-		maxTTL: 5 * time.Minute,
 	}
 
 	for _, opt := range opts {
@@ -96,6 +90,28 @@ func NewInMemoryStore(opts ...InMemoryStoreOption) Store {
 		s.ctx = context.Background()
 	}
 
+	return s
+}
+
+func (s *inMemoryStore) SetMaxAge(maxAge time.Duration) {
+	if s.maxAge == maxAge {
+		return
+	}
+
+	if s.cancel != nil {
+		s.cancel() // Stop the previous goroutine if it exists
+	}
+
+	if maxAge <= 0 {
+		s.maxAge = 0
+		return
+	}
+
+	s.maxAge = maxAge
+
+	var ctx context.Context
+	ctx, s.cancel = context.WithCancel(s.ctx)
+
 	ticker := time.NewTicker(time.Minute)
 
 	go func() {
@@ -104,21 +120,19 @@ func NewInMemoryStore(opts ...InMemoryStoreOption) Store {
 			case <-ticker.C:
 				// Perform the cleanup operation
 				s.cleanup()
-			case <-s.ctx.Done():
+			case <-ctx.Done():
 				// Context has been canceled; stop this goroutine
 				return
 			}
 		}
 	}()
-
-	return s
 }
 
 func (s *inMemoryStore) cleanup() {
 	s.lock.Lock()
 	defer s.lock.Unlock()
 
-	latestLA := time.Now().Add(-s.maxTTL)
+	latestLA := time.Now().Add(-s.maxAge)
 
 	for _, ses := range s.values {
 		la := ses.LastAccessed()
